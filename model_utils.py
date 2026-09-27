@@ -21,7 +21,11 @@ from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
-DATA_PATH = Path(__file__).parent / "data" / "employee_attrition.csv"
+_HERE = Path(__file__).parent
+DATA_PATH = next(
+    (p for p in [_HERE / "data" / "employee_attrition.csv", _HERE / "employee_attrition.csv"] if p.exists()),
+    "https://raw.githubusercontent.com/IBM/employee-attrition-aif360/master/data/emp_attrition.csv",
+)
 RANDOM_STATE = 42
 
 # ---------------------------------------------------------------- features
