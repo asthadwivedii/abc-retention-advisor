@@ -16,6 +16,23 @@ from model_utils import (ATTR_CAT, ATTR_NUM, INC_CAT, INC_NUM, LABELS,
 # Paste your Google Form link here after you create the survey
 FEEDBACK_URL = "https://forms.gle/your-form-id"
 
+# ---- Cover details (edit here if anything changes) ----
+UNIVERSITY = "“Tribhuvan” Sahkari University"
+INSTITUTE = "Institute of Rural Management Anand (IRMA)"
+COURSE = "Business Analytics"
+SUBMITTED_TO = "Prof. Janak Suthar"
+GROUP_NAME = "Group 08"
+GROUP_MEMBERS = [  # (Roll No., Name)
+    ("p46037", "Mohit Makarand Gharote"),
+    ("p46049", "Prosim Saha"),
+    ("p46084", "Astha Dwivedi"),
+    ("p46089", "Criz Varghese"),
+    ("p46114", "Pakhi Garg"),
+    ("p46137", "Sreerag S"),
+    ("p46216", "Vishal"),
+    ("p46225", "Aditya Rastogi"),
+]
+
 st.set_page_config(page_title="ABC Ltd Retention Advisor", page_icon="📊", layout="wide")
 
 
@@ -66,6 +83,30 @@ def gauge(p: float):
 
 
 # ---------------------------------------------------------------- header
+member_rows = "".join(
+    f"<tr><td>{roll}</td><td>{name}</td></tr>" for roll, name in GROUP_MEMBERS)
+st.markdown(f"""
+<style>
+.cover {{text-align:center;padding:18px 16px 6px;border:1px solid rgba(128,128,128,.3);
+         border-radius:12px;margin-bottom:18px}}
+.cover .uni {{font-size:1.35rem;font-weight:700;text-decoration:underline}}
+.cover .inst {{font-size:1.2rem;font-weight:700;text-transform:uppercase;text-decoration:underline;margin-top:2px}}
+.cover .course {{font-size:1.1rem;font-weight:700;text-decoration:underline;margin:10px 0 12px}}
+.cover .sub {{font-size:1rem;margin:2px 0}}
+.cover table {{margin:10px auto 8px;border-collapse:collapse;min-width:min(420px,100%)}}
+.cover th, .cover td {{border:1px solid rgba(128,128,128,.6);padding:4px 16px;text-align:center}}
+.cover th {{font-weight:700}}
+</style>
+<div class="cover">
+  <div class="uni">{UNIVERSITY}</div>
+  <div class="inst">{INSTITUTE}</div>
+  <div class="course">{COURSE}</div>
+  <div class="sub"><b>Submitted to:</b> {SUBMITTED_TO}</div>
+  <div class="sub"><b>Submitted by: {GROUP_NAME}</b></div>
+  <table><tr><th>Roll No.</th><th>Group Members Name</th></tr>{member_rows}</table>
+</div>
+""", unsafe_allow_html=True)
+
 st.title("📊 ABC Ltd — Employee Retention Advisor")
 st.caption(
     "Estimates how likely an employee is to leave in the coming year, explains why, "
