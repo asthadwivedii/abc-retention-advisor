@@ -14,7 +14,7 @@ from model_utils import (ATTR_CAT, ATTR_NUM, INC_CAT, INC_NUM, LABELS,
                          risk_band, train_models)
 
 # Paste your Google Form link here after you create the survey
-FEEDBACK_URL = "https://forms.gle/your-form-id"
+FEEDBACK_URL = "https://forms.gle/a2VMBJ9XaXiAknnt5"
 
 # ---- Cover details (edit here if anything changes) ----
 UNIVERSITY = "“Tribhuvan” Sahkari University"
@@ -241,7 +241,7 @@ with tab2:
     st.download_button("Download CSV template", template.to_csv(index=False), "team_template.csv", "text/csv")
 
     up = st.file_uploader("Upload team CSV", type="csv")
-    use_sample = st.toggle("Use a sample of 40 ABC Ltd employees", value=up is None)
+    use_sample = st.toggle("Use a sample of 18 ABC Ltd employees", value=up is None)
 
     team = None
     if up is not None:
@@ -251,7 +251,7 @@ with tab2:
             st.error(f"Missing columns: {', '.join(sorted(missing))}")
             team = None
     elif use_sample:
-        team = df.sample(40, random_state=7).reset_index(drop=True)
+        team = df.sample(18, random_state=7).reset_index(drop=True)
         team.insert(0, "Employee", [f"EMP-{1000+i}" for i in range(len(team))])
 
     if team is not None:
