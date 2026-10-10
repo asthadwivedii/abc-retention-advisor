@@ -113,8 +113,8 @@ st.caption(
     "and checks whether their pay is in line with similar roles. "
     "It supports your judgement — it does not replace it.")
 
-tab1, tab2, tab3, tab4 = st.tabs(
-    ["👤 Check one employee", "👥 Check a team", "🔍 How the tool works", "📝 Give feedback"])
+tab1, tab2, tab5, tab3, tab4 = st.tabs(
+    ["👤 Check one employee", "👥 Check a team", "📈 Model results", "🔍 How the tool works", "📝 Give feedback"])
 
 # ================================================================ TAB 1
 with tab1:
@@ -268,6 +268,81 @@ with tab2:
                 lambda v: f"color:{BAND_COLOR.get(v, 'inherit')};font-weight:600", subset=["Risk band"]),
             width="stretch", hide_index=True)
         st.download_button("Download results", scored.to_csv(index=False), "team_risk.csv", "text/csv")
+
+# ================================================================ TAB 5: MODEL RESULTS
+with tab5:
+    from sklearn.metrics import roc_curve, precision_score, recall_score
+    lm, im = models["logit_metrics"], models["lin_metrics"]
+    tn, fp, fn, tp = np.array(lm["confusion_matrix"]).ravel()
+
+    st.subheader("Logistic regression — will the employee leave?")
+    st.caption(f"Tested on {lm['n_test']} employees the model had never seen (25% hold-out).")
+    c = st.columns(5)
+    c[0].metric("Accuracy", f"{lm['accuracy']*100:.1f}%")
+    c[1].metric("Precision", f"{lm['precision']*100:.1f}%")
+    c[2].metric("Recall", f"{lm['recall']*100:.1f}%")
+    c[3].metric("F1 score", f"{lm['f1']:.2f}")
+    c[4].metric("ROC AUC", f"{lm['roc_auc']:.2f}")
+
+    with st.expander("What do these numbers mean?", expanded=True):
+        st.markdown(
+            f"- **Accuracy** – share of all predictions that were right ({tn+tp} of {lm['n_test']}). "
+            f"Misleading on its own: only {models['base_rate']*100:.0f}% of employees leave.\n"
+            f"- **Precision** – of the {tp+fp} employees flagged as likely to leave, **{tp} actually left**.\n"
+            f"- **Recall** – of the {tp+fn} employees who actually left, the model **caught {tp}**.\n"
+            "- **F1** – a single score that balances precision and recall (0 = useless, 1 = perfect).\n"
+            "- **AUC** – how well the model ranks leavers above stayers (0.5 = coin toss, 1 = perfect).")
+
+    g1, g2 = st.columns(2)
+    with g1:
+        st.markdown("**Confusion matrix**")
+        cm = go.Figure(go.Heatmap(
+            z=[[tn, fp], [fn, tp]], x=["Predicted: stay", "Predicted: leave"],
+            y=["Actually stayed", "Actually left"], colorscale="Blues", showscale=False,
+            text=[[f"{tn}<br>correct", f"{fp}<br>false alarm"], [f"{fn}<br>missed", f"{tp}<br>caught"]],
+            texttemplate="%{text}", textfont={"size": 16}))
+        cm.update_layout(height=320, margin=dict(l=10, r=10, t=10, b=10), yaxis=dict(autorange="reversed"))
+        st.plotly_chart(cm, width="stretch")
+    with g2:
+        st.markdown("**ROC curve**")
+        fpr, tpr, _ = roc_curve(lm["y_test"], lm["p_test"])
+        roc = go.Figure()
+        roc.add_trace(go.Scatter(x=fpr, y=tpr, mode="lines", name=f"Model (AUC {lm['roc_auc']:.2f})",
+                                 line=dict(color="#1565c0", width=3)))
+        roc.add_trace(go.Scatter(x=[0, 1], y=[0, 1], mode="lines", name="Coin toss",
+                                 line=dict(color="grey", dash="dash")))
+        roc.update_layout(height=320, margin=dict(l=10, r=10, t=10, b=10),
+                          xaxis_title="False alarm rate", yaxis_title="Leavers caught (recall)",
+                          legend=dict(x=.45, y=.08))
+        st.plotly_chart(roc, width="stretch")
+
+    st.markdown("**Try a different cut-off**")
+    thr = st.slider("Flag an employee as 'likely to leave' when risk is above", 0.10, 0.90, 0.50, 0.05)
+    pr = (lm["p_test"] >= thr).astype(int)
+    t = st.columns(4)
+    t[0].metric("Flagged", int(pr.sum()))
+    t[1].metric("Leavers caught", f"{int(((pr==1)&(lm['y_test']==1)).sum())} of {tp+fn}")
+    t[2].metric("Precision", f"{precision_score(lm['y_test'], pr, zero_division=0)*100:.0f}%")
+    t[3].metric("Recall", f"{recall_score(lm['y_test'], pr)*100:.0f}%")
+    st.caption("A lower cut-off catches more leavers but raises more false alarms. "
+               "We use 0.5: a missed leaver costs far more than an extra retention conversation.")
+
+    st.divider()
+    st.subheader("Linear regression — expected monthly pay")
+    c = st.columns(3)
+    c[0].metric("R²", f"{im['r2']:.3f}")
+    c[1].metric("Mean absolute error", f"{im['mae']:,.0f}")
+    c[2].metric("RMSE", f"{im['rmse']:,.0f}")
+    st.caption(f"R² = {im['r2']:.2f} means the model explains about {im['r2']*100:.0f}% of the differences in pay; "
+               f"on average its estimate is off by about {im['mae']:,.0f} per month.")
+    sc = go.Figure(go.Scatter(x=im["actual"], y=im["pred"], mode="markers",
+                              marker=dict(size=6, color="#1565c0", opacity=.6), name="Employees"))
+    lo, hi = float(min(im["actual"])), float(max(im["actual"]))
+    sc.add_trace(go.Scatter(x=[lo, hi], y=[lo, hi], mode="lines", name="Perfect prediction",
+                            line=dict(color="#c62828", dash="dash")))
+    sc.update_layout(height=380, xaxis_title="Actual monthly pay", yaxis_title="Predicted monthly pay",
+                     margin=dict(l=10, r=10, t=10, b=10))
+    st.plotly_chart(sc, width="stretch")
 
 # ================================================================ TAB 3
 with tab3:

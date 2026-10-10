@@ -129,6 +129,7 @@ def train_models(df: pd.DataFrame | None = None) -> dict:
         "roc_auc": roc_auc_score(yte, p),
         "confusion_matrix": confusion_matrix(yte, pred).tolist(),
         "n_test": int(len(yte)),
+        "y_test": yte.to_numpy(), "p_test": p,
     }
 
     # ---- Linear regression: expected monthly income
@@ -141,11 +142,12 @@ def train_models(df: pd.DataFrame | None = None) -> dict:
         ("model", LinearRegression()),
     ]).fit(Xitr, yitr)
     pi = linreg.predict(Xite)
+    lin_actual, lin_pred = yite.to_numpy(), pi
     lin_metrics = {
         "r2": r2_score(yite, pi),
         "mae": mean_absolute_error(yite, pi),
         "rmse": float(np.sqrt(np.mean((yite - pi) ** 2))),
-        "n_test": int(len(yite)),
+        "n_test": int(len(yite)), "actual": lin_actual, "pred": lin_pred,
     }
 
     # Baseline (average employee in transformed space) for explanations
