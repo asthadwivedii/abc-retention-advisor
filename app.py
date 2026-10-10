@@ -274,6 +274,13 @@ with tab5:
     from sklearn.metrics import roc_curve, precision_score, recall_score
     lm, im = models["logit_metrics"], models["lin_metrics"]
     tn, fp, fn, tp = np.array(lm["confusion_matrix"]).ravel()
+    # Rebuild the hold-out test set here so this tab works with any version of model_utils.py
+    from sklearn.model_selection import train_test_split as _tts
+    _, _Xte, _, _yte = _tts(df[ATTR_NUM + ATTR_CAT], df["AttritionFlag"], test_size=0.25,
+                            stratify=df["AttritionFlag"], random_state=42)
+    y_test, p_test = _yte.to_numpy(), logit.predict_proba(_Xte)[:, 1]
+    _, _Xi, _, _yi = _tts(df[INC_NUM + INC_CAT], df["MonthlyIncome"], test_size=0.25, random_state=42)
+    inc_actual, inc_pred = _yi.to_numpy(), linreg.predict(_Xi)
 
     st.subheader("Logistic regression — will the employee leave?")
     st.caption(f"Tested on {lm['n_test']} employees the model had never seen (25% hold-out).")
@@ -283,15 +290,6 @@ with tab5:
     c[2].metric("Recall", f"{lm['recall']*100:.1f}%")
     c[3].metric("F1 score", f"{lm['f1']:.2f}")
     c[4].metric("ROC AUC", f"{lm['roc_auc']:.2f}")
-
-    with st.expander("What do these numbers mean?", expanded=True):
-        st.markdown(
-            f"- **Accuracy** – share of all predictions that were right ({tn+tp} of {lm['n_test']}). "
-            f"Misleading on its own: only {models['base_rate']*100:.0f}% of employees leave.\n"
-            f"- **Precision** – of the {tp+fp} employees flagged as likely to leave, **{tp} actually left**.\n"
-            f"- **Recall** – of the {tp+fn} employees who actually left, the model **caught {tp}**.\n"
-            "- **F1** – a single score that balances precision and recall (0 = useless, 1 = perfect).\n"
-            "- **AUC** – how well the model ranks leavers above stayers (0.5 = coin toss, 1 = perfect).")
 
     g1, g2 = st.columns(2)
     with g1:
@@ -305,7 +303,7 @@ with tab5:
         st.plotly_chart(cm, width="stretch")
     with g2:
         st.markdown("**ROC curve**")
-        fpr, tpr, _ = roc_curve(lm["y_test"], lm["p_test"])
+        fpr, tpr, _ = roc_curve(y_test, p_test)
         roc = go.Figure()
         roc.add_trace(go.Scatter(x=fpr, y=tpr, mode="lines", name=f"Model (AUC {lm['roc_auc']:.2f})",
                                  line=dict(color="#1565c0", width=3)))
@@ -318,12 +316,12 @@ with tab5:
 
     st.markdown("**Try a different cut-off**")
     thr = st.slider("Flag an employee as 'likely to leave' when risk is above", 0.10, 0.90, 0.50, 0.05)
-    pr = (lm["p_test"] >= thr).astype(int)
+    pr = (p_test >= thr).astype(int)
     t = st.columns(4)
     t[0].metric("Flagged", int(pr.sum()))
-    t[1].metric("Leavers caught", f"{int(((pr==1)&(lm['y_test']==1)).sum())} of {tp+fn}")
-    t[2].metric("Precision", f"{precision_score(lm['y_test'], pr, zero_division=0)*100:.0f}%")
-    t[3].metric("Recall", f"{recall_score(lm['y_test'], pr)*100:.0f}%")
+    t[1].metric("Leavers caught", f"{int(((pr==1)&(y_test==1)).sum())} of {tp+fn}")
+    t[2].metric("Precision", f"{precision_score(y_test, pr, zero_division=0)*100:.0f}%")
+    t[3].metric("Recall", f"{recall_score(y_test, pr)*100:.0f}%")
     st.caption("A lower cut-off catches more leavers but raises more false alarms. "
                "We use 0.5: a missed leaver costs far more than an extra retention conversation.")
 
@@ -335,9 +333,9 @@ with tab5:
     c[2].metric("RMSE", f"{im['rmse']:,.0f}")
     st.caption(f"R² = {im['r2']:.2f} means the model explains about {im['r2']*100:.0f}% of the differences in pay; "
                f"on average its estimate is off by about {im['mae']:,.0f} per month.")
-    sc = go.Figure(go.Scatter(x=im["actual"], y=im["pred"], mode="markers",
+    sc = go.Figure(go.Scatter(x=inc_actual, y=inc_pred, mode="markers",
                               marker=dict(size=6, color="#1565c0", opacity=.6), name="Employees"))
-    lo, hi = float(min(im["actual"])), float(max(im["actual"]))
+    lo, hi = float(min(inc_actual)), float(max(inc_actual))
     sc.add_trace(go.Scatter(x=[lo, hi], y=[lo, hi], mode="lines", name="Perfect prediction",
                             line=dict(color="#c62828", dash="dash")))
     sc.update_layout(height=380, xaxis_title="Actual monthly pay", yaxis_title="Predicted monthly pay",
